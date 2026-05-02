@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudyFlow — AI-Powered Study Planner</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ─── Landing Page Styles ─── */
+    body { overflow-x: hidden; }
+
+    /* Hero */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 6rem 2rem 4rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .hero-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.12;
+    }
+
+    .orb-1 {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, #63b3ed, transparent);
+      top: -200px; left: -100px;
+      animation: float 8s ease-in-out infinite;
+    }
+
+    .orb-2 {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, #9f7aea, transparent);
+      bottom: -150px; right: -100px;
+      animation: float 10s ease-in-out infinite reverse;
+    }
+
+    .orb-3 {
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, #68d391, transparent);
+      top: 40%; left: 60%;
+      animation: float 12s ease-in-out infinite;
+    }
+
+    /* Floating grid overlay */
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(99,179,237,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99,179,237,0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      max-width: 800px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 1rem;
+      background: rgba(99,179,237,0.1);
+      border: 1px solid rgba(99,179,237,0.2);
+      border-radius: 99px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 2rem;
+      animation: fadeInUp 0.6s ease forwards;
+    }
+
+    .hero h1 {
+      margin-bottom: 1.25rem;
+      animation: fadeInUp 0.6s 0.1s ease forwards;
+      opacity: 0;
+    }
+
+    .hero h1 em {
+      font-style: italic;
+      background: var(--gradient-accent);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: 1.15rem;
+      max-width: 560px;
+      margin: 0 auto 2.5rem;
+      line-height: 1.7;
+      animation: fadeInUp 0.6s 0.2s ease forwards;
+      opacity: 0;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      animation: fadeInUp 0.6s 0.3s ease forwards;
+      opacity: 0;
+    }
+
+    /* App preview */
+    .hero-preview {
+      position: relative;
+      margin-top: 5rem;
+      width: 100%;
+      max-width: 900px;
+      animation: fadeInUp 0.8s 0.5s ease forwards;
+      opacity: 0;
+    }
+
+    .preview-window {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-lg), 0 0 80px rgba(99,179,237,0.08);
+    }
+
+    .preview-titlebar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.875rem 1.25rem;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .preview-dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+    }
+
+    .preview-dot:nth-child(1) { background: #fc8181; }
+    .preview-dot:nth-child(2) { background: #f6ad55; }
+    .preview-dot:nth-child(3) { background: #68d391; }
+
+    .preview-url {
+      margin-left: auto;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      background: var(--bg-primary);
+      padding: 0.25rem 0.75rem;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+    }
+
+    .preview-body {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      height: 340px;
+      overflow: hidden;
+    }
+
+    .preview-sidebar {
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      padding: 1rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .preview-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .preview-nav-item.active {
+      background: rgba(99,179,237,0.1);
+      color: var(--accent);
+    }
+
+    .preview-main {
+      padding: 1.25rem;
+      overflow: hidden;
+    }
+
+    .preview-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .preview-stat {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.875rem;
+    }
+
+    .preview-stat-val {
+      font-size: 1.3rem;
+      font-family: var(--font-display);
+      color: var(--text-primary);
+      line-height: 1;
+    }
+
+    .preview-stat-label {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 0.3rem;
+    }
+
+    .preview-timer-ring {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+    }
+
+    .mini-ring {
+      width: 64px;
+      height: 64px;
+      flex-shrink: 0;
+    }
+
+    .preview-timer-info .time {
+      font-family: var(--font-mono);
+      font-size: 1.5rem;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .preview-timer-info .label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+
+    /* Features section */
+    .features {
+      padding: 6rem 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .features-header {
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 0% 0%, rgba(99,179,237,0.05), transparent 60%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .feature-card:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-6px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .feature-card:hover::before { opacity: 1; }
+
+    .feature-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: var(--radius-md);
+      display: grid;
+      place-items: center;
+      font-size: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .feature-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.6rem;
+      color: var(--text-primary);
+    }
+
+    .feature-desc {
+      font-size: 0.875rem;
+      line-height: 1.6;
+    }
+
+    /* Stats section */
+    .stats-section {
+      padding: 4rem 2rem;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stats-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2rem;
+      text-align: center;
+    }
+
+    .stats-num {
+      font-family: var(--font-display);
+      font-size: 2.5rem;
+      background: var(--gradient-accent);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+
+    .stats-label { font-size: 0.875rem; color: var(--text-secondary); }
+
+    /* CTA */
+    .cta-section {
+      padding: 6rem 2rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-section h2 { margin-bottom: 1rem; }
+    .cta-section p { margin-bottom: 2rem; font-size: 1.05rem; }
+
+    /* Nav */
+    .land-nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      height: 64px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    @media (max-width: 768px) {
+      .features-grid { grid-template-columns: 1fr; }
+      .stats-inner { grid-template-columns: repeat(2, 1fr); }
+      .preview-body { grid-template-columns: 1fr; }
+      .preview-sidebar { display: none; }
+      .preview-stats { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 480px) {
+      .stats-inner { grid-template-columns: 1fr; }
+      .preview-stats { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Nav -->
+  <nav class="land-nav">
+    <div class="nav-logo">
+      <div class="logo-icon">📚</div>
+      <span>StudyFlow</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.75rem">
+      <button class="theme-toggle btn btn-ghost">🌙</button>
+      <a href="dashboard.html" class="btn btn-primary btn-sm">Open App →</a>
+    </div>
+  </nav>
+
+  <!-- Toast container -->
+  <div id="toast-container"></div>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-bg">
+      <div class="hero-grid"></div>
+      <div class="hero-orb orb-1"></div>
+      <div class="hero-orb orb-2"></div>
+      <div class="hero-orb orb-3"></div>
+    </div>
+
+    <div class="hero-content">
+      <div class="hero-badge">✨ AI-Powered Productivity</div>
+      <h1>Study <em>Smarter,</em><br>Not Harder</h1>
+      <p class="hero-subtitle">
+        An intelligent study planner that adapts to you — track focus time, get AI recommendations, plan your schedule, and hit your goals.
+      </p>
+      <div class="hero-actions">
+        <a href="dashboard.html" class="btn btn-primary btn-lg">
+          🚀 Get Started — It's Free
+        </a>
+        <a href="planner.html" class="btn btn-secondary btn-lg">
+          📅 View Planner
+        </a>
+      </div>
+    </div>
+
+    <!-- App Preview Mockup -->
+    <div class="hero-preview">
+      <div class="preview-window">
+        <div class="preview-titlebar">
+          <div class="preview-dot"></div>
+          <div class="preview-dot"></div>
+          <div class="preview-dot"></div>
+          <div class="preview-url">studyflow.app/dashboard</div>
+        </div>
+        <div class="preview-body">
+          <div class="preview-sidebar">
+            <div class="preview-nav-item active">📊 Dashboard</div>
+            <div class="preview-nav-item">📅 Planner</div>
+            <div class="preview-nav-item">⏱️ Timer</div>
+            <div class="preview-nav-item">🧠 AI Tips</div>
+            <div class="preview-nav-item">🎯 Goals</div>
+            <div class="preview-nav-item">📈 Reports</div>
+          </div>
+          <div class="preview-main">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+              <div>
+                <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.1em">Good morning</div>
+                <div style="font-family:var(--font-display);font-size:1.1rem;color:var(--text-primary)">Today's Dashboard</div>
+              </div>
+              <div class="badge badge-green">🔥 7-day streak</div>
+            </div>
+            <div class="preview-stats">
+              <div class="preview-stat">
+                <div class="preview-stat-val">2h 45m</div>
+                <div class="preview-stat-label">Today</div>
+              </div>
+              <div class="preview-stat">
+                <div class="preview-stat-val" style="color:var(--accent-3)">8</div>
+                <div class="preview-stat-label">Tasks Done</div>
+              </div>
+              <div class="preview-stat">
+                <div class="preview-stat-val" style="color:var(--accent-2)">94%</div>
+                <div class="preview-stat-label">Focus Rate</div>
+              </div>
+            </div>
+            <div class="preview-timer-ring">
+              <svg class="mini-ring" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(99,179,237,0.15)" stroke-width="6"/>
+                <circle cx="32" cy="32" r="26" fill="none" stroke="#63b3ed" stroke-width="6"
+                  stroke-linecap="round" stroke-dasharray="163.36" stroke-dashoffset="65"
+                  transform="rotate(-90 32 32)"/>
+              </svg>
+              <div class="preview-timer-info">
+                <div class="time">18:32</div>
+                <div class="label">Focus Session • Mathematics</div>
+                <div style="margin-top:0.5rem;display:flex;gap:0.4rem">
+                  <div style="padding:0.2rem 0.6rem;background:var(--border);border-radius:4px;font-size:0.65rem;color:var(--text-muted)">⏸ Pause</div>
+                  <div style="padding:0.2rem 0.6rem;background:var(--border);border-radius:4px;font-size:0.65rem;color:var(--text-muted)">⏹ Stop</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features">
+    <div class="features-header">
+      <h2>Everything You Need to Excel</h2>
+      <p style="margin-top:0.75rem;max-width:500px;margin-left:auto;margin-right:auto">
+        A complete academic toolkit designed around how you actually study.
+      </p>
+    </div>
+    <div class="features-grid stagger">
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(99,179,237,0.12)">⏱️</div>
+        <div class="feature-title">Pomodoro Focus Timer</div>
+        <p class="feature-desc">Circular progress timer with 25-min focus & 5-min break cycles. Sound alerts keep you on track without checking your phone.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(159,122,234,0.12)">🧠</div>
+        <div class="feature-title">AI Recommendations</div>
+        <p class="feature-desc">Our engine analyzes your study patterns, detects neglected subjects, and gives you actionable, personalized suggestions.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(104,211,145,0.12)">📅</div>
+        <div class="feature-title">Smart Study Planner</div>
+        <p class="feature-desc">Drag-and-drop task organizer with priority sorting, deadline tracking, and auto-generated daily study plans.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(246,173,85,0.12)">📊</div>
+        <div class="feature-title">Productivity Dashboard</div>
+        <p class="feature-desc">Visual weekly charts, completion rates, streak counters, and per-subject time breakdowns all in one place.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(252,129,129,0.12)">🎯</div>
+        <div class="feature-title">Goal Tracker</div>
+        <p class="feature-desc">Set daily and weekly targets with live progress bars. Never lose sight of what you're working toward.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(99,179,237,0.12)">🎤</div>
+        <div class="feature-title">Voice Task Input</div>
+        <p class="feature-desc">Add tasks hands-free using Web Speech API. Just say "Add task: Review chapter 5" and it's done.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats banner -->
+  <section class="stats-section">
+    <div class="stats-inner">
+      <div>
+        <div class="stats-num">25m</div>
+        <div class="stats-label">Optimal focus block</div>
+      </div>
+      <div>
+        <div class="stats-num">∞</div>
+        <div class="stats-label">Local storage, no account needed</div>
+      </div>
+      <div>
+        <div class="stats-num">6+</div>
+        <div class="stats-label">AI insight types</div>
+      </div>
+      <div>
+        <div class="stats-num">100%</div>
+        <div class="stats-label">Private, offline-capable</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <div class="hero-bg">
+      <div class="hero-orb orb-1" style="opacity:0.06"></div>
+      <div class="hero-orb orb-2" style="opacity:0.06"></div>
+    </div>
+    <div style="position:relative;z-index:1">
+      <h2>Ready to level up your studies?</h2>
+      <p>No sign-up. No cloud. Your data stays on your device.</p>
+      <a href="dashboard.html" class="btn btn-primary btn-lg">
+        🚀 Open StudyFlow
+      </a>
+    </div>
+  </section>
+
+  <footer>
+    <p>Your smart companion for better study habits and focused learning. © 2026 StudyPlanner</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

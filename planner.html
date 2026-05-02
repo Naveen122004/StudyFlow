@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planner — StudyFlow</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ─── Planner Specific Styles ─── */
+    .app-layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+    .main-content { padding: 2rem; overflow-y: auto; max-height: 100vh; }
+
+    /* Task Item */
+    .task-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.875rem;
+      padding: 1rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      transition: var(--transition);
+      position: relative;
+    }
+
+    .task-item:hover {
+      border-color: var(--border-accent);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .task-item.completed {
+      opacity: 0.55;
+    }
+
+    .task-item.completed .task-title {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+
+    .task-item.priority-high { border-left: 3px solid var(--accent-5); }
+    .task-item.priority-medium { border-left: 3px solid var(--accent-4); }
+    .task-item.priority-low { border-left: 3px solid var(--accent-3); }
+
+    .task-check {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      flex-shrink: 0;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      font-size: 0.65rem;
+      transition: var(--transition);
+      margin-top: 2px;
+    }
+
+    .task-check:hover { border-color: var(--accent-3); }
+
+    .task-item.completed .task-check {
+      background: var(--gradient-success);
+      border-color: transparent;
+      color: white;
+    }
+
+    .task-drag-handle {
+      display: flex;
+      align-items: center;
+      color: var(--text-muted);
+      cursor: grab;
+      font-size: 0.9rem;
+      padding-top: 2px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .task-item:hover .task-drag-handle { opacity: 1; }
+
+    .task-content { flex: 1; min-width: 0; }
+    .task-title { font-size: 0.9rem; font-weight: 500; margin-bottom: 0.35rem; }
+    .task-notes { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; line-height: 1.4; }
+
+    .task-meta {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .task-actions {
+      display: flex;
+      gap: 0.25rem;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .task-item:hover .task-actions { opacity: 1; }
+
+    /* Filter Bar */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+
+    .filter-chip {
+      padding: 0.35rem 0.875rem;
+      border-radius: 99px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .filter-chip.active {
+      background: var(--gradient-accent);
+      border-color: transparent;
+      color: white;
+    }
+
+    .filter-chip:hover:not(.active) {
+      border-color: var(--border-accent);
+      color: var(--text-primary);
+    }
+
+    /* Search */
+    .search-wrapper {
+      position: relative;
+      flex: 1;
+      max-width: 300px;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      pointer-events: none;
+    }
+
+    .search-input {
+      padding-left: 2.25rem !important;
+    }
+
+    /* Subject Cards */
+    .subject-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      transition: var(--transition);
+      cursor: pointer;
+    }
+
+    .subject-card:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-2px);
+    }
+
+    .subject-icon-lg {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-sm);
+      display: grid;
+      place-items: center;
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
+
+    .subject-task-count {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.15rem;
+    }
+
+    /* Sections */
+    .task-section { margin-bottom: 2rem; }
+    .task-section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.875rem;
+    }
+    .task-section-title { font-size: 0.9rem; font-weight: 600; }
+
+    /* Collapse */
+    .section-toggle { cursor: pointer; user-select: none; }
+    .section-toggle::after { content: ' ▾'; font-size: 0.7rem; color: var(--text-muted); }
+    .section-toggle.collapsed::after { content: ' ▸'; }
+
+    /* Empty */
+    .tasks-empty {
+      text-align: center;
+      padding: 3rem 1rem;
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-lg);
+      color: var(--text-muted);
+    }
+
+    /* Bulk actions */
+    .bulk-bar {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--bg-card);
+      border: 1px solid var(--border-accent);
+      border-radius: 99px;
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: var(--shadow-lg);
+      transition: transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+      z-index: 100;
+      backdrop-filter: blur(20px);
+    }
+    .bulk-bar.visible { transform: translateX(-50%) translateY(0); }
+    .bulk-count { font-size: 0.875rem; font-weight: 600; }
+
+    /* Mobile */
+    .mobile-bar {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border);
+      padding: 0.75rem;
+      justify-content: space-around;
+      z-index: 200;
+    }
+    .mobile-bar-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.2rem;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .mobile-bar-item.active { color: var(--accent); }
+    .mobile-bar-item .bar-icon { font-size: 1.2rem; }
+
+    @media (max-width: 768px) {
+      .app-layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .mobile-bar { display: flex !important; }
+      .main-content { padding: 1rem; padding-bottom: 80px; max-height: none; }
+      .task-actions { opacity: 1; }
+      .task-drag-handle { opacity: 0.4; }
+    }
+  </style>
+</head>
+<body>
+  <div id="toast-container"></div>
+
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon" style="width:32px;height:32px;background:var(--gradient-accent);border-radius:9px;display:grid;place-items:center;font-size:16px;">📚</div>
+        <span style="font-weight:700">StudyFlow</span>
+      </div>
+
+      <div class="sidebar-section-label">Main</div>
+      <a href="index.html" class="sidebar-link">
+        <span class="link-icon">🏠</span> Home
+      </a>
+      <a href="dashboard.html" class="sidebar-link">
+        <span class="link-icon">📊</span> Dashboard
+      </a>
+      <a href="planner.html" class="sidebar-link active">
+        <span class="link-icon">📅</span> Planner
+      </a>
+      <a href="dashboard.html#timer" class="sidebar-link">
+        <span class="link-icon">⏱️</span> Focus Timer
+      </a>
+
+      <div class="sidebar-section-label">Insights</div>
+      <a href="dashboard.html#suggestions" class="sidebar-link">
+        <span class="link-icon">🧠</span> AI Suggestions
+      </a>
+      <a href="dashboard.html#goals" class="sidebar-link">
+        <span class="link-icon">🎯</span> Goals
+      </a>
+      <a href="dashboard.html" class="sidebar-link" onclick="event.preventDefault();history.back()">
+        <span class="link-icon">📈</span> Weekly Report
+      </a>
+
+      <div class="sidebar-section-label">Subjects</div>
+      <div id="sidebar-subjects"></div>
+      <button class="sidebar-link" style="width:100%;text-align:left;background:none;border:none;color:var(--text-muted);cursor:pointer" onclick="openSubjectModal()">
+        <span class="link-icon">+</span> Add Subject
+      </button>
+
+      <div class="sidebar-bottom">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem">
+          <div style="display:flex;align-items:center;gap:0.5rem">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--gradient-accent);display:grid;place-items:center;font-size:14px;flex-shrink:0;">🎓</div>
+            <div>
+              <div style="font-size:0.8rem;font-weight:600">Student</div>
+              <div id="sidebar-streak" style="font-size:0.7rem;color:var(--text-muted)">🔥 0 day streak</div>
+            </div>
+          </div>
+          <button class="theme-toggle btn btn-ghost" style="width:32px;height:32px;font-size:0.9rem;">🌙</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Header -->
+      <div class="section-header" style="margin-bottom:2rem">
+        <div>
+          <h2 style="margin:0">Study Planner</h2>
+          <p style="margin-top:0.25rem;font-size:0.875rem" id="tasks-summary">Loading…</p>
+        </div>
+        <div style="display:flex;gap:0.75rem">
+          <button class="btn btn-secondary btn-sm" onclick="openSubjectModal()">📁 Subjects</button>
+          <button class="btn btn-primary" onclick="openTaskModal()">
+            + Add Task
+          </button>
+          <button class="btn btn-secondary btn-sm voice-btn" id="voice-add-btn" onclick="startVoiceAdd()">🎤</button>
+        </div>
+      </div>
+
+      <!-- Subjects Row -->
+      <div id="subjects-row" class="grid-4 stagger" style="margin-bottom:1.5rem"></div>
+
+      <!-- Filter Bar -->
+      <div class="filter-bar">
+        <div class="search-wrapper">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" placeholder="Search tasks…" id="search-input" oninput="filterTasks()">
+        </div>
+
+        <button class="filter-chip active" onclick="setFilter('all', this)">All</button>
+        <button class="filter-chip" onclick="setFilter('today', this)">Today</button>
+        <button class="filter-chip" onclick="setFilter('pending', this)">Pending</button>
+        <button class="filter-chip" onclick="setFilter('completed', this)">Done</button>
+        <button class="filter-chip" onclick="setFilter('overdue', this)">Overdue</button>
+
+        <select id="subject-filter" onchange="filterTasks()" style="max-width:150px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.4rem 0.7rem;font-family:var(--font-body);font-size:0.8rem;color:var(--text-primary)">
+          <option value="all">All Subjects</option>
+        </select>
+
+        <select id="sort-select" onchange="filterTasks()" style="max-width:150px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.4rem 0.7rem;font-family:var(--font-body);font-size:0.8rem;color:var(--text-primary)">
+          <option value="priority">Priority</option>
+          <option value="deadline">Deadline</option>
+          <option value="created">Newest</option>
+          <option value="name">Name A-Z</option>
+        </select>
+      </div>
+
+      <!-- Task List -->
+      <div id="task-sections"></div>
+
+      <div style="height:80px"></div>
+    </main>
+  </div>
+
+  <!-- Bulk Action Bar -->
+  <div class="bulk-bar" id="bulk-bar">
+    <span class="bulk-count" id="bulk-count">0 selected</span>
+    <button class="btn btn-secondary btn-sm" onclick="bulkComplete()">✓ Complete</button>
+    <button class="btn btn-danger btn-sm" onclick="bulkDelete()">🗑 Delete</button>
+    <button class="btn btn-ghost btn-sm" onclick="clearSelection()">✕</button>
+  </div>
+
+  <!-- Mobile Bottom Bar -->
+  <div class="mobile-bar">
+    <a href="index.html" class="mobile-bar-item">
+      <span class="bar-icon">🏠</span><span>Home</span>
+    </a>
+    <a href="dashboard.html" class="mobile-bar-item">
+      <span class="bar-icon">📊</span><span>Dashboard</span>
+    </a>
+    <a href="planner.html" class="mobile-bar-item active">
+      <span class="bar-icon">📅</span><span>Planner</span>
+    </a>
+    <div class="mobile-bar-item" onclick="openTaskModal()">
+      <span class="bar-icon">➕</span><span>Add Task</span>
+    </div>
+    <div class="mobile-bar-item" onclick="startVoiceAdd()">
+      <span class="bar-icon">🎤</span><span>Voice</span>
+    </div>
+  </div>
+
+  <!-- Add/Edit Task Modal -->
+  <div class="modal-overlay" id="task-modal">
+    <div class="modal" style="max-width:520px">
+      <div class="modal-header">
+        <h3 class="modal-title" id="task-modal-title">New Task</h3>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('task-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="task-id">
+
+        <div class="form-group">
+          <label>Task Title *</label>
+          <input type="text" id="task-title" placeholder="e.g., Review Chapter 5 — Thermodynamics" maxlength="100">
+        </div>
+
+        <div class="grid-2" style="gap:0.875rem">
+          <div class="form-group">
+            <label>Subject</label>
+            <select id="task-subject"></select>
+          </div>
+          <div class="form-group">
+            <label>Priority</label>
+            <select id="task-priority">
+              <option value="high">🔴 High</option>
+              <option value="medium" selected>🟡 Medium</option>
+              <option value="low">🟢 Low</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid-2" style="gap:0.875rem">
+          <div class="form-group">
+            <label>Deadline</label>
+            <input type="date" id="task-deadline">
+          </div>
+          <div class="form-group">
+            <label>Est. Time (minutes)</label>
+            <input type="number" id="task-time" min="5" max="480" step="5" value="25" placeholder="25">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Notes (optional)</label>
+          <textarea id="task-notes" placeholder="Additional details, references, etc." rows="2"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Tags</label>
+          <div style="display:flex;gap:0.5rem">
+            <input type="text" id="tag-input" placeholder="Type a tag and press Enter" style="flex:1">
+            <button class="btn btn-secondary btn-sm" onclick="addTag()">Add</button>
+          </div>
+          <div class="tags" id="tags-container"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('task-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveTask()">Save Task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Subject Modal -->
+  <div class="modal-overlay" id="subject-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">📁 Manage Subjects</h3>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('subject-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="subjects-list" class="flex-col gap-1" style="margin-bottom:1rem;max-height:300px;overflow-y:auto"></div>
+        <div class="divider"></div>
+        <div style="font-size:0.85rem;font-weight:600;margin-bottom:0.75rem">Add New Subject</div>
+        <div class="grid-2" style="gap:0.75rem">
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="new-subject-name" placeholder="e.g., Biology">
+          </div>
+          <div class="form-group">
+            <label>Icon (emoji)</label>
+            <input type="text" id="new-subject-icon" placeholder="🧬" maxlength="2">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Color</label>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.25rem">
+            <div class="color-option" style="background:#63b3ed" onclick="selectColor('#63b3ed', this)"></div>
+            <div class="color-option" style="background:#9f7aea" onclick="selectColor('#9f7aea', this)"></div>
+            <div class="color-option" style="background:#68d391" onclick="selectColor('#68d391', this)"></div>
+            <div class="color-option" style="background:#f6ad55" onclick="selectColor('#f6ad55', this)"></div>
+            <div class="color-option" style="background:#fc8181" onclick="selectColor('#fc8181', this)"></div>
+            <div class="color-option" style="background:#76e4f7" onclick="selectColor('#76e4f7', this)"></div>
+            <div class="color-option" style="background:#fbb6ce" onclick="selectColor('#fbb6ce', this)"></div>
+            <div class="color-option" style="background:#faf089" onclick="selectColor('#faf089', this)"></div>
+          </div>
+        </div>
+        <button class="btn btn-primary w-full" onclick="addSubject()" style="margin-top:0.75rem">Add Subject</button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .color-option {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 3px solid transparent;
+      transition: var(--transition);
+    }
+    .color-option.selected { border-color: white; transform: scale(1.15); }
+  </style>
+
+  <script src="script.js"></script>
+  <script>
+    // ─── Planner Logic ──────────────────────────────────────────
+
+    let currentFilter = 'all';
+    let selectedTasks = new Set();
+    let editingTags = [];
+    let selectedColor = '#63b3ed';
+    let dragSrcId = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderPage();
+
+      // Tag input on Enter
+      document.getElementById('tag-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); addTag(); }
+      });
+
+      // Task title enter to save
+      document.getElementById('task-title').addEventListener('keydown', e => {
+        if (e.key === 'Enter') saveTask();
+      });
+
+      updateSidebarStreak();
+    });
+
+    function renderPage() {
+      renderSubjectsRow();
+      renderSidebarSubjects();
+      populateSubjectDropdown();
+      filterTasks();
+      updateSummary();
+    }
+
+    function updateSidebarStreak() {
+      const s = DB.getStreak();
+      const el = document.getElementById('sidebar-streak');
+      if (el) el.textContent = `🔥 ${s.current} day${s.current !== 1 ? 's' : ''} streak`;
+    }
+
+    function updateSummary() {
+      const tasks = DB.getTasks();
+      const done = tasks.filter(t => t.completed).length;
+      const el = document.getElementById('tasks-summary');
+      if (el) el.textContent = `${done} of ${tasks.length} tasks completed`;
+    }
+
+    // ─── Subjects ─────────────────────────────────────────────
+    function renderSubjectsRow() {
+      const subjects = DB.getSubjects();
+      const tasks = DB.getTasks();
+      const row = document.getElementById('subjects-row');
+
+      row.innerHTML = subjects.map(s => {
+        const total = tasks.filter(t => t.subject === s.name).length;
+        const done = tasks.filter(t => t.subject === s.name && t.completed).length;
+        return `<div class="subject-card" onclick="filterBySubject('${s.name}')">
+          <div class="subject-icon-lg" style="background:${s.color}22">
+            ${s.icon || '📖'}
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:0.875rem;font-weight:600;truncate">${Utils.escapeHtml(s.name)}</div>
+            <div class="subject-task-count">${done}/${total} tasks</div>
+            <div class="progress-bar mt-1" style="height:4px">
+              <div class="progress-fill" style="width:${total > 0 ? Math.round(done/total*100) : 0}%;background:${s.color}"></div>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function renderSidebarSubjects() {
+      const subjects = DB.getSubjects();
+      const el = document.getElementById('sidebar-subjects');
+      if (!el) return;
+      el.innerHTML = subjects.map(s => `
+        <button class="sidebar-link" style="width:100%;text-align:left;background:none;border:none;cursor:pointer" onclick="filterBySubject('${s.name}')">
+          <span class="link-icon">${s.icon || '📖'}</span> ${Utils.escapeHtml(s.name)}
+        </button>
+      `).join('');
+    }
+
+    function filterBySubject(name) {
+      const sel = document.getElementById('subject-filter');
+      sel.value = name;
+      setFilter('all', document.querySelector('.filter-chip'));
+    }
+
+    function populateSubjectDropdown() {
+      const subjects = DB.getSubjects();
+      const taskSub = document.getElementById('task-subject');
+      const filterSub = document.getElementById('subject-filter');
+
+      taskSub.innerHTML = `<option value="General">📚 General</option>` +
+        subjects.map(s => `<option value="${Utils.escapeHtml(s.name)}">${s.icon || '📖'} ${Utils.escapeHtml(s.name)}</option>`).join('');
+
+      filterSub.innerHTML = `<option value="all">All Subjects</option>` +
+        subjects.map(s => `<option value="${Utils.escapeHtml(s.name)}">${Utils.escapeHtml(s.name)}</option>`).join('');
+    }
+
+    // ─── Filter & Render Tasks ─────────────────────────────────
+    function setFilter(filter, btn) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      filterTasks();
+    }
+
+    function filterTasks() {
+      const q = document.getElementById('search-input').value.toLowerCase();
+      const subjectFilter = document.getElementById('subject-filter').value;
+      const sort = document.getElementById('sort-select').value;
+
+      let tasks = DB.getTasks();
+      const now = new Date();
+
+      // Apply filter
+      tasks = tasks.filter(t => {
+        if (currentFilter === 'today') {
+          const isToday = t.deadline && new Date(t.deadline).toDateString() === now.toDateString();
+          return isToday && !t.completed;
+        }
+        if (currentFilter === 'pending') return !t.completed;
+        if (currentFilter === 'completed') return t.completed;
+        if (currentFilter === 'overdue') return !t.completed && t.deadline && new Date(t.deadline) < now;
+        return true;
+      });
+
+      // Subject filter
+      if (subjectFilter !== 'all') tasks = tasks.filter(t => t.subject === subjectFilter);
+
+      // Search
+      if (q) tasks = tasks.filter(t =>
+        t.title.toLowerCase().includes(q) ||
+        (t.notes || '').toLowerCase().includes(q) ||
+        (t.subject || '').toLowerCase().includes(q)
+      );
+
+      // Sort
+      const pScore = { high: 3, medium: 2, low: 1 };
+      tasks.sort((a, b) => {
+        if (sort === 'priority') {
+          const pd = (pScore[b.priority] || 1) - (pScore[a.priority] || 1);
+          if (pd !== 0) return pd;
+          if (a.deadline && b.deadline) return new Date(a.deadline) - new Date(b.deadline);
+          if (a.deadline) return -1;
+          if (b.deadline) return 1;
+          return 0;
+        }
+        if (sort === 'deadline') {
+          if (a.deadline && b.deadline) return new Date(a.deadline) - new Date(b.deadline);
+          if (a.deadline) return -1;
+          if (b.deadline) return 1;
+          return 0;
+        }
+        if (sort === 'created') return new Date(b.createdAt) - new Date(a.createdAt);
+        if (sort === 'name') return a.title.localeCompare(b.title);
+        return 0;
+      });
+
+      renderTasks(tasks);
+    }
+
+    function renderTasks(tasks) {
+      const container = document.getElementById('task-sections');
+
+      if (tasks.length === 0) {
+        container.innerHTML = `<div class="tasks-empty">
+          <div style="font-size:2.5rem;margin-bottom:1rem">📭</div>
+          <h3 style="font-family:var(--font-display);margin-bottom:0.5rem">No tasks found</h3>
+          <p>Try a different filter or <button class="btn btn-primary btn-sm" style="display:inline-flex" onclick="openTaskModal()">add a new task</button></p>
+        </div>`;
+        return;
+      }
+
+      // Group by status
+      const overdue = tasks.filter(t => !t.completed && t.deadline && new Date(t.deadline) < new Date());
+      const pending = tasks.filter(t => !t.completed && !(t.deadline && new Date(t.deadline) < new Date()));
+      const completed = tasks.filter(t => t.completed);
+
+      let html = '';
+
+      if (overdue.length > 0) {
+        html += renderSection('🔴 Overdue', overdue, 'overdue');
+      }
+      if (pending.length > 0) {
+        html += renderSection('📋 Pending', pending, 'pending');
+      }
+      if (completed.length > 0) {
+        html += renderSection('✅ Completed', completed, 'completed', true);
+      }
+
+      container.innerHTML = html;
+      attachDragListeners();
+    }
+
+    function renderSection(title, tasks, id, collapsed = false) {
+      return `<div class="task-section">
+        <div class="task-section-header">
+          <h3 class="task-section-title section-toggle ${collapsed ? 'collapsed' : ''}" onclick="toggleSection('section-${id}', this)">${title}</h3>
+          <span class="badge badge-blue">${tasks.length}</span>
+        </div>
+        <div id="section-${id}" class="flex-col gap-1" style="${collapsed ? 'display:none' : ''}">
+          ${tasks.map(t => renderTaskItem(t)).join('')}
+        </div>
+      </div>`;
+    }
+
+    function renderTaskItem(task) {
+      const isOverdue = Utils.isOverdue(task.deadline) && !task.completed;
+      const priorityBadge = { high: 'red', medium: 'orange', low: 'green' };
+      const subjects = DB.getSubjects();
+      const subject = subjects.find(s => s.name === task.subject);
+      const isSelected = selectedTasks.has(task.id);
+
+      return `<div class="task-item priority-${task.priority} ${task.completed ? 'completed' : ''} draggable ${isSelected ? 'selected-task' : ''}"
+          data-id="${task.id}"
+          draggable="true"
+          ondragstart="onDragStart(event, '${task.id}')"
+          ondragover="onDragOver(event)"
+          ondrop="onDrop(event, '${task.id}')"
+          ondragend="onDragEnd(event)"
+          onclick="handleTaskClick(event, '${task.id}')">
+        <span class="task-drag-handle">⠿</span>
+        <div class="task-check" onclick="toggleTaskCheck(event, '${task.id}')">${task.completed ? '✓' : ''}</div>
+        <div class="task-content">
+          <div class="task-title">${Utils.escapeHtml(task.title)}</div>
+          ${task.notes ? `<div class="task-notes">${Utils.escapeHtml(task.notes.slice(0, 80))}${task.notes.length > 80 ? '…' : ''}</div>` : ''}
+          <div class="task-meta">
+            ${subject ? `<span class="badge badge-blue" style="background:${subject.color}22;color:${subject.color};border-color:${subject.color}44">${subject.icon || '📖'} ${Utils.escapeHtml(task.subject)}</span>` : `<span class="badge badge-blue">📚 ${Utils.escapeHtml(task.subject || 'General')}</span>`}
+            <span class="badge badge-${priorityBadge[task.priority] || 'blue'}">${task.priority}</span>
+            ${task.deadline ? `<span class="badge ${isOverdue ? 'badge-red' : 'badge-blue'}">${isOverdue ? '⚠️ ' : '📅 '}${Utils.formatDate(task.deadline)}</span>` : ''}
+            ${task.estimatedTime ? `<span class="text-xs text-muted">~${task.estimatedTime}m</span>` : ''}
+            ${(task.tags || []).map(tag => `<span class="tag">${Utils.escapeHtml(tag)}</span>`).join('')}
+          </div>
+        </div>
+        <div class="task-actions">
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="editTask(event, '${task.id}')" data-tooltip="Edit">✏️</button>
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="deleteTask(event, '${task.id}')" data-tooltip="Delete">🗑️</button>
+        </div>
+      </div>`;
+    }
+
+    function toggleSection(id, btn) {
+      const section = document.getElementById(id);
+      const hidden = section.style.display === 'none';
+      section.style.display = hidden ? '' : 'none';
+      btn.classList.toggle('collapsed', !hidden);
+    }
+
+    // ─── Task CRUD ─────────────────────────────────────────────
+    function openTaskModal(taskId = null) {
+      editingTags = [];
+      document.getElementById('task-id').value = taskId || '';
+      document.getElementById('task-title').value = '';
+      document.getElementById('task-priority').value = 'medium';
+      document.getElementById('task-deadline').value = '';
+      document.getElementById('task-time').value = '25';
+      document.getElementById('task-notes').value = '';
+      document.getElementById('tags-container').innerHTML = '';
+      document.getElementById('task-modal-title').textContent = taskId ? 'Edit Task' : 'New Task';
+
+      if (taskId) {
+        const task = DB.getTasks().find(t => t.id === taskId);
+        if (task) {
+          document.getElementById('task-title').value = task.title;
+          document.getElementById('task-subject').value = task.subject || 'General';
+          document.getElementById('task-priority').value = task.priority;
+          document.getElementById('task-deadline').value = task.deadline ? task.deadline.split('T')[0] : '';
+          document.getElementById('task-time').value = task.estimatedTime || 25;
+          document.getElementById('task-notes').value = task.notes || '';
+          editingTags = [...(task.tags || [])];
+          renderTags();
+        }
+      }
+
+      document.getElementById('task-modal').classList.add('open');
+      setTimeout(() => document.getElementById('task-title').focus(), 100);
+    }
+
+    function saveTask() {
+      const title = document.getElementById('task-title').value.trim();
+      if (!title) { Toast.error('Please enter a task title'); return; }
+
+      const id = document.getElementById('task-id').value;
+      const taskData = {
+        title,
+        subject: document.getElementById('task-subject').value,
+        priority: document.getElementById('task-priority').value,
+        deadline: document.getElementById('task-deadline').value || null,
+        estimatedTime: parseInt(document.getElementById('task-time').value) || 25,
+        notes: document.getElementById('task-notes').value.trim(),
+        tags: editingTags
+      };
+
+      if (id) {
+        DB.updateTask(id, taskData);
+        Toast.success('Task updated!');
+      } else {
+        DB.addTask(taskData);
+        Toast.success('Task added!');
+      }
+
+      closeModal('task-modal');
+      renderPage();
+    }
+
+    function editTask(e, id) {
+      e.stopPropagation();
+      openTaskModal(id);
+    }
+
+    function deleteTask(e, id) {
+      e.stopPropagation();
+      if (!confirm('Delete this task?')) return;
+      DB.deleteTask(id);
+      renderPage();
+      Toast.success('Task deleted');
+    }
+
+    function toggleTaskCheck(e, id) {
+      e.stopPropagation();
+      const task = DB.getTasks().find(t => t.id === id);
+      if (!task) return;
+      DB.updateTask(id, { completed: !task.completed });
+      if (!task.completed) Toast.success(`"${task.title.slice(0, 30)}" completed! 🎉`);
+      renderPage();
+    }
+
+    function handleTaskClick(e, id) {
+      if (e.shiftKey || e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        toggleSelection(id);
+      }
+    }
+
+    // ─── Tags ─────────────────────────────────────────────────
+    function addTag() {
+      const input = document.getElementById('tag-input');
+      const val = input.value.trim().replace(/,/g, '');
+      if (!val || editingTags.includes(val)) { input.value = ''; return; }
+      editingTags.push(val);
+      input.value = '';
+      renderTags();
+    }
+
+    function removeTag(tag) {
+      editingTags = editingTags.filter(t => t !== tag);
+      renderTags();
+    }
+
+    function renderTags() {
+      document.getElementById('tags-container').innerHTML = editingTags.map(tag =>
+        `<span class="tag">${Utils.escapeHtml(tag)}<span class="remove-tag" onclick="removeTag('${Utils.escapeHtml(tag)}')">✕</span></span>`
+      ).join('');
+    }
+
+    // ─── Bulk Selection ───────────────────────────────────────
+    function toggleSelection(id) {
+      if (selectedTasks.has(id)) {
+        selectedTasks.delete(id);
+      } else {
+        selectedTasks.add(id);
+      }
+      document.getElementById('bulk-count').textContent = `${selectedTasks.size} selected`;
+      document.getElementById('bulk-bar').classList.toggle('visible', selectedTasks.size > 0);
+      filterTasks(); // re-render
+    }
+
+    function clearSelection() {
+      selectedTasks.clear();
+      document.getElementById('bulk-bar').classList.remove('visible');
+      filterTasks();
+    }
+
+    function bulkComplete() {
+      selectedTasks.forEach(id => DB.updateTask(id, { completed: true }));
+      Toast.success(`${selectedTasks.size} tasks completed!`);
+      clearSelection();
+    }
+
+    function bulkDelete() {
+      if (!confirm(`Delete ${selectedTasks.size} tasks?`)) return;
+      selectedTasks.forEach(id => DB.deleteTask(id));
+      Toast.success('Tasks deleted');
+      clearSelection();
+    }
+
+    // ─── Drag & Drop ──────────────────────────────────────────
+    function onDragStart(e, id) {
+      dragSrcId = id;
+      e.dataTransfer.effectAllowed = 'move';
+      e.currentTarget.classList.add('dragging');
+    }
+
+    function onDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      e.currentTarget.classList.add('drag-over');
+    }
+
+    function onDrop(e, targetId) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      if (dragSrcId === targetId) return;
+
+      const tasks = DB.getTasks();
+      const srcIdx = tasks.findIndex(t => t.id === dragSrcId);
+      const tgtIdx = tasks.findIndex(t => t.id === targetId);
+      if (srcIdx === -1 || tgtIdx === -1) return;
+
+      // Swap
+      [tasks[srcIdx], tasks[tgtIdx]] = [tasks[tgtIdx], tasks[srcIdx]];
+      DB.saveTasks(tasks);
+      filterTasks();
+      Toast.info('Task reordered');
+    }
+
+    function onDragEnd(e) {
+      e.currentTarget.classList.remove('dragging');
+      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+      dragSrcId = null;
+    }
+
+    function attachDragListeners() {
+      // Already via inline handlers above
+    }
+
+    // ─── Voice Add ────────────────────────────────────────────
+    function startVoiceAdd() {
+      const btn = document.getElementById('voice-add-btn');
+      if (Voice.isListening) { Voice.stop(); btn.classList.remove('recording'); return; }
+
+      btn.classList.add('recording');
+      Toast.info('🎤 Say a task name…');
+
+      Voice.start(
+        (text) => {
+          btn.classList.remove('recording');
+          const cleaned = text.replace(/^(add task|add|create|new task|task)/i, '').trim();
+          if (cleaned.length > 2) {
+            openTaskModal();
+            document.getElementById('task-title').value = cleaned;
+          } else {
+            Toast.error('Could not understand. Try again.');
+          }
+        },
+        () => btn.classList.remove('recording')
+      );
+    }
+
+    // ─── Subjects Modal ───────────────────────────────────────
+    function openSubjectModal() {
+      renderSubjectsList();
+      selectedColor = '#63b3ed';
+      document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
+      document.querySelector('.color-option').classList.add('selected');
+      document.getElementById('subject-modal').classList.add('open');
+    }
+
+    function renderSubjectsList() {
+      const subjects = DB.getSubjects();
+      document.getElementById('subjects-list').innerHTML = subjects.map(s => `
+        <div style="display:flex;align-items:center;gap:0.75rem;padding:0.625rem;background:var(--bg-secondary);border-radius:var(--radius-sm)">
+          <div style="width:36px;height:36px;border-radius:var(--radius-sm);background:${s.color}22;display:grid;place-items:center;font-size:1.2rem">${s.icon || '📖'}</div>
+          <div style="flex:1">
+            <div style="font-size:0.875rem;font-weight:500">${Utils.escapeHtml(s.name)}</div>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="deleteSubject('${s.id}')">Remove</button>
+        </div>
+      `).join('') || '<p style="color:var(--text-muted);font-size:0.875rem">No subjects yet</p>';
+    }
+
+    function selectColor(color, el) {
+      selectedColor = color;
+      document.querySelectorAll('.color-option').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+
+    function addSubject() {
+      const name = document.getElementById('new-subject-name').value.trim();
+      const icon = document.getElementById('new-subject-icon').value.trim() || '📖';
+      if (!name) { Toast.error('Please enter a subject name'); return; }
+
+      DB.addSubject({ name, icon, color: selectedColor });
+      document.getElementById('new-subject-name').value = '';
+      document.getElementById('new-subject-icon').value = '';
+      renderSubjectsList();
+      populateSubjectDropdown();
+      renderSubjectsRow();
+      renderSidebarSubjects();
+      Toast.success(`Subject "${name}" added!`);
+    }
+
+    function deleteSubject(id) {
+      const subjects = DB.getSubjects().filter(s => s.id !== id);
+      DB.saveSubjects(subjects);
+      renderSubjectsList();
+      populateSubjectDropdown();
+      renderSubjectsRow();
+      renderSidebarSubjects();
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('open');
+    }
+  </script>
+</body>
+</html>

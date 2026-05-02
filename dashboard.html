@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — StudyFlow</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ─── Dashboard Specific ─── */
+    .app-layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+
+    .main-content { padding: 2rem; overflow-y: auto; max-height: 100vh; }
+
+    /* Timer */
+    .timer-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: 2.5rem 2rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .timer-card::before {
+      content: '';
+      position: absolute;
+      top: -50%; left: 50%;
+      transform: translateX(-50%);
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(99,179,237,0.06), transparent 70%);
+      pointer-events: none;
+    }
+
+    .timer-mode-tabs {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+
+    .mode-tab {
+      padding: 0.4rem 1rem;
+      border-radius: 99px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      transition: var(--transition);
+    }
+
+    .mode-tab.active {
+      background: var(--gradient-accent);
+      border-color: transparent;
+      color: white;
+    }
+
+    .ring-container {
+      position: relative;
+      width: 220px;
+      height: 220px;
+      margin: 0 auto 2rem;
+    }
+
+    .ring-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+
+    .ring-bg {
+      fill: none;
+      stroke: var(--border);
+      stroke-width: 10;
+    }
+
+    .ring-progress {
+      fill: none;
+      stroke: url(#timerGradient);
+      stroke-width: 10;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 1s linear;
+    }
+
+    .ring-center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.25rem;
+    }
+
+    .timer-display {
+      font-family: var(--font-mono);
+      font-size: 3rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .timer-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+    }
+
+    .timer-session-count {
+      font-size: 0.7rem;
+      color: var(--accent);
+      font-family: var(--font-mono);
+    }
+
+    .timer-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    .btn-play {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: var(--gradient-accent);
+      color: white;
+      font-size: 1.5rem;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 8px 24px rgba(99,179,237,0.35);
+      transition: var(--transition-bounce);
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-play:hover {
+      transform: scale(1.1);
+      box-shadow: 0 12px 32px rgba(99,179,237,0.5);
+    }
+
+    .btn-play:active { transform: scale(0.95); }
+
+    .timer-subject-select {
+      margin-top: 1.5rem;
+    }
+
+    /* Today's Plan */
+    .plan-item {
+      display: flex;
+      align-items: center;
+      gap: 0.875rem;
+      padding: 0.875rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      transition: var(--transition);
+      cursor: pointer;
+    }
+
+    .plan-item:hover {
+      border-color: var(--border-accent);
+      background: var(--bg-card);
+    }
+
+    .plan-item.completed {
+      opacity: 0.5;
+    }
+
+    .plan-item.completed .plan-title {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+
+    .plan-check {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      flex-shrink: 0;
+      display: grid;
+      place-items: center;
+      transition: var(--transition);
+      font-size: 0.7rem;
+    }
+
+    .plan-item.completed .plan-check {
+      background: var(--gradient-success);
+      border-color: transparent;
+      color: white;
+    }
+
+    .plan-title { font-size: 0.9rem; font-weight: 500; }
+    .plan-meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.1rem; }
+    .plan-right { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
+
+    /* AI Suggestion Card */
+    .suggestion-card {
+      display: flex;
+      gap: 1rem;
+      padding: 1.25rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      transition: var(--transition);
+      cursor: pointer;
+    }
+
+    .suggestion-card:hover {
+      border-color: var(--border-accent);
+      transform: translateX(4px);
+    }
+
+    .suggestion-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: var(--radius-sm);
+      background: var(--bg-card);
+    }
+
+    .suggestion-card.success { border-left: 3px solid var(--accent-3); }
+    .suggestion-card.warning { border-left: 3px solid var(--accent-4); }
+    .suggestion-card.info { border-left: 3px solid var(--accent); }
+    .suggestion-card.error { border-left: 3px solid var(--accent-5); }
+
+    .suggestion-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+    }
+
+    .suggestion-body {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* Goal progress */
+    .goal-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .goal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.875rem;
+    }
+
+    .goal-value {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--accent);
+    }
+
+    /* Weekly chart */
+    .chart-container {
+      position: relative;
+      height: 200px;
+    }
+
+    /* Subject breakdown */
+    .subject-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .subject-row:last-child { border-bottom: none; }
+
+    .subject-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .subject-name { font-size: 0.875rem; flex: 1; }
+    .subject-time { font-size: 0.8rem; color: var(--text-muted); font-family: var(--font-mono); }
+
+    /* Report modal */
+    .report-section { margin-bottom: 1.5rem; }
+    .report-section h4 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.75rem; }
+    .report-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+    .report-stat { text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius-sm); }
+    .report-stat-val { font-family: var(--font-display); font-size: 1.5rem; color: var(--text-primary); }
+    .report-stat-label { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+    /* Focus Mode */
+    #focus-mode-overlay {
+      background: #050508;
+      gap: 3rem;
+    }
+
+    .focus-timer-large {
+      font-family: var(--font-mono);
+      font-size: 6rem;
+      font-weight: 300;
+      color: rgba(99,179,237,0.9);
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+
+    .focus-subject-label {
+      font-size: 1rem;
+      color: rgba(255,255,255,0.4);
+      text-align: center;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .dash-grid { grid-template-columns: 1fr !important; }
+    }
+
+    @media (max-width: 768px) {
+      .app-layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .mobile-bar { display: flex !important; }
+      .main-content { padding: 1rem; max-height: none; }
+      .ring-container { width: 180px; height: 180px; }
+      .timer-display { font-size: 2.4rem; }
+    }
+
+    /* Mobile Bottom Bar */
+    .mobile-bar {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border);
+      padding: 0.75rem;
+      justify-content: space-around;
+      z-index: 200;
+    }
+
+    .mobile-bar-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.2rem;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.3rem 0.5rem;
+      border-radius: var(--radius-sm);
+      transition: var(--transition);
+    }
+
+    .mobile-bar-item.active { color: var(--accent); }
+    .mobile-bar-item .bar-icon { font-size: 1.2rem; }
+  </style>
+</head>
+<body>
+  <div id="toast-container"></div>
+
+  <!-- Focus Mode Overlay -->
+  <div id="focus-mode-overlay">
+    <div class="focus-subject-label" id="focus-mode-subject">Focus Session</div>
+    <div class="focus-timer-large" id="focus-mode-time">25:00</div>
+    <div style="display:flex;gap:1rem;align-items:center">
+      <button class="btn btn-secondary" id="focus-mode-pause">⏸ Pause</button>
+      <button class="btn btn-ghost" onclick="exitFocusMode()">✕ Exit Focus Mode</button>
+    </div>
+    <p style="color:rgba(255,255,255,0.2);font-size:0.8rem">Press Esc to exit</p>
+  </div>
+
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon" style="width:32px;height:32px;background:var(--gradient-accent);border-radius:9px;display:grid;place-items:center;font-size:16px;">📚</div>
+        <span style="font-weight:700">StudyFlow</span>
+      </div>
+
+      <div class="sidebar-section-label">Main</div>
+      <a href="index.html" class="sidebar-link">
+        <span class="link-icon">🏠</span> Home
+      </a>
+      <a href="dashboard.html" class="sidebar-link active">
+        <span class="link-icon">📊</span> Dashboard
+      </a>
+      <a href="planner.html" class="sidebar-link">
+        <span class="link-icon">📅</span> Planner
+      </a>
+      <a href="#timer" class="sidebar-link" onclick="scrollToTimer()">
+        <span class="link-icon">⏱️</span> Focus Timer
+      </a>
+
+      <div class="sidebar-section-label">Insights</div>
+      <a href="#suggestions" class="sidebar-link" onclick="scrollToSection('suggestions')">
+        <span class="link-icon">🧠</span> AI Suggestions
+      </a>
+      <a href="#goals" class="sidebar-link" onclick="scrollToSection('goals')">
+        <span class="link-icon">🎯</span> Goals
+      </a>
+      <a href="#" class="sidebar-link" onclick="showReportModal()">
+        <span class="link-icon">📈</span> Weekly Report
+      </a>
+
+      <div class="sidebar-section-label">Focus</div>
+      <a href="#" class="sidebar-link" onclick="enterFocusMode()">
+        <span class="link-icon">🧘</span> Focus Mode
+      </a>
+
+      <div class="sidebar-bottom">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem">
+          <div style="display:flex;align-items:center;gap:0.5rem">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--gradient-accent);display:grid;place-items:center;font-size:14px;flex-shrink:0;">🎓</div>
+            <div>
+              <div style="font-size:0.8rem;font-weight:600">Student</div>
+              <div id="sidebar-streak" style="font-size:0.7rem;color:var(--text-muted)">🔥 0 day streak</div>
+            </div>
+          </div>
+          <button class="theme-toggle btn btn-ghost" style="width:32px;height:32px;font-size:0.9rem;">🌙</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" id="main-scroll">
+      <!-- Header -->
+      <div class="section-header" style="margin-bottom:2rem">
+        <div>
+          <div id="greeting" style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.25rem"></div>
+          <h2 style="margin:0">Today's Dashboard</h2>
+        </div>
+        <div style="display:flex;gap:0.75rem;align-items:center">
+          <button class="btn btn-secondary btn-sm" onclick="showReportModal()">📈 Weekly Report</button>
+          <button class="btn btn-primary btn-sm" onclick="enterFocusMode()">🧘 Focus Mode</button>
+        </div>
+      </div>
+
+      <!-- Stat Cards -->
+      <div class="grid-4 stagger" style="margin-bottom:2rem" id="stats-grid">
+        <div class="stat-card blue">
+          <div class="stat-icon blue">⏱️</div>
+          <div class="stat-value" id="stat-today">0m</div>
+          <div class="stat-label">Today's Focus</div>
+          <div class="progress-bar mt-1">
+            <div class="progress-fill" id="today-progress" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon green">✅</div>
+          <div class="stat-value" id="stat-completed">0</div>
+          <div class="stat-label">Tasks Completed</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem" id="stat-completion-rate">of <span id="stat-total">0</span> total</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-icon orange">🔥</div>
+          <div class="stat-value" id="stat-streak">0</div>
+          <div class="stat-label">Day Streak</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem">Best: <span id="stat-best-streak">0</span> days</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-icon purple">📚</div>
+          <div class="stat-value" id="stat-total-hours">0h</div>
+          <div class="stat-label">Total Study Time</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem" id="stat-sessions-count">0 sessions</div>
+        </div>
+      </div>
+
+      <!-- Main Grid -->
+      <div style="display:grid;grid-template-columns:1fr 340px;gap:1.5rem;margin-bottom:1.5rem" class="dash-grid">
+
+        <!-- Left Column -->
+        <div style="display:flex;flex-direction:column;gap:1.5rem">
+
+          <!-- Today's Plan -->
+          <div class="card" id="today-plan">
+            <div class="section-header">
+              <div class="section-title">
+                <span>📋</span>
+                <h3>Today's Plan</h3>
+                <span id="plan-badge" class="badge badge-blue">0 tasks</span>
+              </div>
+              <a href="planner.html" class="btn btn-secondary btn-sm">+ Add Task</a>
+            </div>
+            <div id="plan-list" class="scroll-list" style="max-height:280px;gap:0.5rem">
+              <div class="empty-state">
+                <div class="empty-icon">📋</div>
+                <p>No tasks for today. <a href="planner.html" style="color:var(--accent)">Add some tasks</a> to get started.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Weekly Chart -->
+          <div class="card">
+            <div class="section-header">
+              <div class="section-title">
+                <span>📈</span>
+                <h3>Weekly Focus</h3>
+              </div>
+              <div class="tabs">
+                <button class="tab active" onclick="switchChart('hours', this)">Hours</button>
+                <button class="tab" onclick="switchChart('tasks', this)">Tasks</button>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="weeklyChart"></canvas>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Column -->
+        <div style="display:flex;flex-direction:column;gap:1.5rem">
+
+          <!-- Pomodoro Timer -->
+          <div class="timer-card" id="timer">
+            <div class="timer-mode-tabs">
+              <button class="mode-tab active" onclick="setTimerMode('focus', this)">Focus 25m</button>
+              <button class="mode-tab" onclick="setTimerMode('short', this)">Break 5m</button>
+              <button class="mode-tab" onclick="setTimerMode('long', this)">Long 15m</button>
+            </div>
+
+            <div class="ring-container">
+              <svg class="ring-svg" viewBox="0 0 200 200">
+                <defs>
+                  <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#63b3ed"/>
+                    <stop offset="100%" stop-color="#9f7aea"/>
+                  </linearGradient>
+                </defs>
+                <circle class="ring-bg" cx="100" cy="100" r="85"/>
+                <circle class="ring-progress" id="ring-progress" cx="100" cy="100" r="85"
+                  stroke-dasharray="534" stroke-dashoffset="0"/>
+              </svg>
+              <div class="ring-center">
+                <div class="timer-display" id="timer-display">25:00</div>
+                <div class="timer-label" id="timer-label">Ready to focus</div>
+                <div class="timer-session-count" id="session-count">Session #1</div>
+              </div>
+            </div>
+
+            <div class="timer-controls">
+              <button class="btn btn-ghost btn-icon" onclick="resetTimer()" data-tooltip="Reset">↺</button>
+              <button class="btn-play" id="play-btn" onclick="toggleTimer()">▶</button>
+              <button class="btn btn-ghost btn-icon" id="voice-btn" onclick="toggleVoiceTask()" data-tooltip="Voice Input">🎤</button>
+            </div>
+
+            <div class="timer-subject-select mt-2">
+              <select id="timer-subject" onchange="saveTimerSubject()">
+                <option value="General">📚 General Study</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Notification toggle -->
+          <div class="card" style="padding:1rem">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div style="display:flex;align-items:center;gap:0.75rem">
+                <span style="font-size:1.2rem">🔔</span>
+                <div>
+                  <div style="font-size:0.85rem;font-weight:600">Study Reminders</div>
+                  <div style="font-size:0.75rem;color:var(--text-muted)">Browser notifications</div>
+                </div>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="enableNotifications()" id="notif-btn">Enable</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Bottom Row -->
+      <div class="grid-2" style="margin-bottom:1.5rem">
+
+        <!-- AI Suggestions -->
+        <div class="card" id="suggestions">
+          <div class="section-header">
+            <div class="section-title">
+              <span>🧠</span>
+              <h3>AI Suggestions</h3>
+              <div class="notif-dot"></div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="refreshSuggestions()">↻ Refresh</button>
+          </div>
+          <div id="suggestions-list" class="flex-col gap-1">
+            <div class="empty-state"><div class="empty-icon">🧠</div><p>Analyzing your patterns…</p></div>
+          </div>
+        </div>
+
+        <!-- Goals -->
+        <div class="card" id="goals">
+          <div class="section-header">
+            <div class="section-title">
+              <span>🎯</span>
+              <h3>Goals</h3>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="openGoalModal()">Edit Goals</button>
+          </div>
+          <div class="flex-col gap-2" id="goals-list"></div>
+          <div class="divider"></div>
+          <div style="display:flex;flex-direction:column;gap:1rem">
+            <h4 style="font-size:0.85rem;font-weight:600">Subject Breakdown</h4>
+            <div id="subject-breakdown" class="flex-col">
+              <div class="empty-state" style="padding:1rem"><p>Complete sessions to see breakdown</p></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="height:80px"></div><!-- Mobile bottom bar spacing -->
+    </main>
+  </div>
+
+  <!-- Mobile Bottom Bar -->
+  <div class="mobile-bar">
+    <a href="index.html" class="mobile-bar-item">
+      <span class="bar-icon">🏠</span>
+      <span>Home</span>
+    </a>
+    <a href="dashboard.html" class="mobile-bar-item active">
+      <span class="bar-icon">📊</span>
+      <span>Dashboard</span>
+    </a>
+    <a href="planner.html" class="mobile-bar-item">
+      <span class="bar-icon">📅</span>
+      <span>Planner</span>
+    </a>
+    <div class="mobile-bar-item" onclick="scrollToTimer()">
+      <span class="bar-icon">⏱️</span>
+      <span>Timer</span>
+    </div>
+    <div class="mobile-bar-item" onclick="showReportModal()">
+      <span class="bar-icon">📈</span>
+      <span>Report</span>
+    </div>
+  </div>
+
+  <!-- Goal Edit Modal -->
+  <div class="modal-overlay" id="goal-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">🎯 Edit Goals</h3>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('goal-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Daily Focus Target (minutes)</label>
+          <input type="number" id="goal-daily-mins" min="15" max="600" step="15" value="120">
+        </div>
+        <div class="form-group">
+          <label>Daily Tasks Target</label>
+          <input type="number" id="goal-daily-tasks" min="1" max="20" value="3">
+        </div>
+        <div class="form-group">
+          <label>Weekly Tasks Target</label>
+          <input type="number" id="goal-weekly-tasks" min="1" max="50" value="10">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('goal-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveGoals()">Save Goals</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Weekly Report Modal -->
+  <div class="modal-overlay" id="report-modal">
+    <div class="modal" style="max-width:580px">
+      <div class="modal-header">
+        <h3 class="modal-title">📈 Weekly Report</h3>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('report-modal')">✕</button>
+      </div>
+      <div id="report-content"></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    // ─── Dashboard Logic ────────────────────────────────────────
+
+    // State
+    let timerInterval = null;
+    let timerRunning = false;
+    let timerSeconds = 25 * 60;
+    let timerTotalSeconds = 25 * 60;
+    let timerMode = 'focus';
+    let sessionNumber = 1;
+    let weeklyChart = null;
+    let chartMode = 'hours';
+
+    const MODES = {
+      focus: { seconds: 25 * 60, label: 'Focus' },
+      short: { seconds: 5 * 60, label: 'Short Break' },
+      long: { seconds: 15 * 60, label: 'Long Break' }
+    };
+
+    // ─── Init ────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      setGreeting();
+      loadStats();
+      loadTodayPlan();
+      renderSuggestions();
+      renderGoals();
+      initChart();
+      populateSubjectDropdown();
+      updateSidebarStreak();
+      initFocusMode();
+
+      // Check if hash is #timer
+      if (location.hash === '#timer') {
+        setTimeout(() => document.getElementById('timer')?.scrollIntoView({ behavior: 'smooth' }), 300);
+      }
+    });
+
+    function setGreeting() {
+      const h = new Date().getHours();
+      const greetings = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+      const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      const el = document.getElementById('greeting');
+      if (el) el.textContent = `${greetings} — ${days[new Date().getDay()]}, ${new Date().toLocaleDateString('en', { month: 'long', day: 'numeric' })}`;
+    }
+
+    function updateSidebarStreak() {
+      const s = DB.getStreak();
+      const el = document.getElementById('sidebar-streak');
+      if (el) el.textContent = `🔥 ${s.current} day${s.current !== 1 ? 's' : ''} streak`;
+    }
+
+    // ─── Stats ───────────────────────────────────────────────
+    function loadStats() {
+      const stats = DB.getStats();
+      const goals = DB.getGoals();
+
+      document.getElementById('stat-today').textContent = Utils.formatMinutes(stats.todayMinutes);
+      document.getElementById('stat-completed').textContent = stats.completedToday;
+      document.getElementById('stat-total').textContent = stats.totalTasks;
+      document.getElementById('stat-streak').textContent = stats.streak.current;
+      document.getElementById('stat-best-streak').textContent = stats.streak.longest;
+      document.getElementById('stat-total-hours').textContent = Utils.formatMinutes(stats.totalMinutes);
+      document.getElementById('stat-sessions-count').textContent =
+        `${DB.getSessions().filter(s => s.type === 'focus').length} sessions`;
+
+      const progress = Math.min(100, Math.round((stats.todayMinutes / goals.dailyMinutes) * 100));
+      document.getElementById('today-progress').style.width = progress + '%';
+    }
+
+    // ─── Today's Plan ─────────────────────────────────────────
+    function loadTodayPlan() {
+      const plan = AIEngine.generateDailyPlan();
+      const list = document.getElementById('plan-list');
+      const badge = document.getElementById('plan-badge');
+
+      badge.textContent = `${plan.length} tasks`;
+
+      if (plan.length === 0) {
+        list.innerHTML = `<div class="empty-state">
+          <div class="empty-icon">📋</div>
+          <p>No pending tasks. <a href="planner.html" style="color:var(--accent)">Add some tasks</a> to get started.</p>
+        </div>`;
+        return;
+      }
+
+      list.innerHTML = plan.map(task => {
+        const priorityColors = { high: 'red', medium: 'orange', low: 'green' };
+        const isOverdue = Utils.isOverdue(task.deadline);
+        return `<div class="plan-item ${task.completed ? 'completed' : ''}" onclick="toggleTask('${task.id}', this)">
+          <div class="plan-check">${task.completed ? '✓' : ''}</div>
+          <div style="flex:1;min-width:0">
+            <div class="plan-title">${Utils.escapeHtml(task.title)}</div>
+            <div class="plan-meta">${task.subject} • ~${task.estimatedTime}min${task.deadline ? ` • <span style="color:${isOverdue ? 'var(--accent-5)' : 'var(--text-muted)'}">${Utils.formatDate(task.deadline)}</span>` : ''}</div>
+          </div>
+          <div class="plan-right">
+            <span class="badge badge-${priorityColors[task.priority] || 'blue'}">${task.priority}</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function toggleTask(id, el) {
+      const task = DB.getTasks().find(t => t.id === id);
+      if (!task) return;
+      DB.updateTask(id, { completed: !task.completed });
+      loadTodayPlan();
+      loadStats();
+      renderGoals();
+      if (!task.completed) Toast.success(`"${task.title}" completed! 🎉`);
+    }
+
+    // ─── Pomodoro Timer ───────────────────────────────────────
+    function setTimerMode(mode, btn) {
+      document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      timerMode = mode;
+      resetTimer();
+    }
+
+    function toggleTimer() {
+      if (timerRunning) {
+        pauseTimer();
+      } else {
+        startTimer();
+      }
+    }
+
+    function startTimer() {
+      timerRunning = true;
+      document.getElementById('play-btn').textContent = '⏸';
+      document.getElementById('timer-label').textContent = timerMode === 'focus' ? 'Focusing…' : 'On break…';
+      document.getElementById('focus-mode-pause').textContent = '⏸ Pause';
+
+      // Request notification permission
+      Notifications.requestPermission();
+
+      timerInterval = setInterval(() => {
+        timerSeconds--;
+        updateTimerDisplay();
+        updateFocusModeDisplay();
+
+        if (timerSeconds <= 0) {
+          clearInterval(timerInterval);
+          timerRunning = false;
+          onTimerComplete();
+        }
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      clearInterval(timerInterval);
+      timerRunning = false;
+      document.getElementById('play-btn').textContent = '▶';
+      document.getElementById('timer-label').textContent = 'Paused';
+      document.getElementById('focus-mode-pause').textContent = '▶ Resume';
+    }
+
+    function resetTimer() {
+      clearInterval(timerInterval);
+      timerRunning = false;
+      timerSeconds = MODES[timerMode].seconds;
+      timerTotalSeconds = timerSeconds;
+      document.getElementById('play-btn').textContent = '▶';
+      document.getElementById('timer-label').textContent = 'Ready to focus';
+      updateTimerDisplay();
+    }
+
+    function updateTimerDisplay() {
+      const m = Math.floor(timerSeconds / 60).toString().padStart(2, '0');
+      const s = (timerSeconds % 60).toString().padStart(2, '0');
+      const display = `${m}:${s}`;
+      document.getElementById('timer-display').textContent = display;
+      document.getElementById('focus-mode-time').textContent = display;
+
+      // Update ring
+      const circumference = 534;
+      const progress = timerSeconds / timerTotalSeconds;
+      const offset = circumference * (1 - progress);
+      document.getElementById('ring-progress').style.strokeDashoffset = offset;
+
+      // Update page title
+      if (timerRunning) {
+        document.title = `${display} — ${timerMode === 'focus' ? '🎯 Focus' : '☕ Break'} — StudyFlow`;
+      } else {
+        document.title = 'Dashboard — StudyFlow';
+      }
+    }
+
+    function onTimerComplete() {
+      playBeep();
+      const subject = document.getElementById('timer-subject').value;
+
+      if (timerMode === 'focus') {
+        DB.addSession({
+          type: 'focus',
+          duration: Math.round(MODES.focus.seconds / 60),
+          subject
+        });
+        sessionNumber++;
+        document.getElementById('session-count').textContent = `Session #${sessionNumber}`;
+        Toast.success(`Focus session complete! Great work! 🎉`);
+        Notifications.send('Focus Session Complete!', 'Time for a break — you earned it! ☕', '✅');
+        loadStats();
+        renderGoals();
+        renderSuggestions();
+        updateSidebarStreak();
+
+        // Auto switch to break
+        setTimeout(() => {
+          document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
+          const breakMode = sessionNumber % 4 === 0 ? 'long' : 'short';
+          timerMode = breakMode;
+          timerSeconds = MODES[breakMode].seconds;
+          timerTotalSeconds = timerSeconds;
+          updateTimerDisplay();
+          document.getElementById('timer-label').textContent = 'Break time! 🎉';
+          document.getElementById('play-btn').textContent = '▶';
+        }, 1000);
+      } else {
+        Toast.info('Break over — ready to focus again!');
+        Notifications.send('Break Complete', 'Ready to start your next focus session? 🎯', '⏱️');
+        setTimerMode('focus', document.querySelector('.mode-tab'));
+      }
+
+      document.title = 'Dashboard — StudyFlow';
+    }
+
+    function playBeep() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.5);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.8);
+      } catch (e) { /* audio not available */ }
+    }
+
+    function saveTimerSubject() {
+      Storage.set('timer_subject', document.getElementById('timer-subject').value);
+    }
+
+    function populateSubjectDropdown() {
+      const sel = document.getElementById('timer-subject');
+      const subjects = DB.getSubjects();
+      const saved = Storage.get('timer_subject', 'General');
+      sel.innerHTML = `<option value="General">📚 General Study</option>` +
+        subjects.map(s => `<option value="${Utils.escapeHtml(s.name)}" ${s.name === saved ? 'selected' : ''}>${s.icon || '📖'} ${Utils.escapeHtml(s.name)}</option>`).join('');
+    }
+
+    // ─── Focus Mode ───────────────────────────────────────────
+    function initFocusMode() {
+      document.getElementById('focus-mode-pause').addEventListener('click', () => {
+        toggleTimer();
+      });
+    }
+
+    function enterFocusMode() {
+      const overlay = document.getElementById('focus-mode-overlay');
+      overlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+      const subject = document.getElementById('timer-subject').value;
+      document.getElementById('focus-mode-subject').textContent = `📚 Focusing on ${subject}`;
+      if (!timerRunning) startTimer();
+    }
+
+    function exitFocusMode() {
+      document.getElementById('focus-mode-overlay').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    function updateFocusModeDisplay() {
+      const overlay = document.getElementById('focus-mode-overlay');
+      if (overlay.classList.contains('active')) {
+        // Already updated by timer
+      }
+    }
+
+    // ─── Voice Input ─────────────────────────────────────────
+    function toggleVoiceTask() {
+      const btn = document.getElementById('voice-btn');
+      if (Voice.isListening) {
+        Voice.stop();
+        btn.classList.remove('recording');
+        return;
+      }
+
+      btn.classList.add('recording');
+      Toast.info('🎤 Listening… Say a task name');
+
+      Voice.start(
+        (text) => {
+          btn.classList.remove('recording');
+          // Parse voice command
+          const cleaned = text.replace(/^(add task|add|create task|new task|task)/i, '').trim();
+          if (cleaned.length > 2) {
+            DB.addTask({
+              title: cleaned,
+              subject: document.getElementById('timer-subject').value,
+              priority: 'medium',
+              estimatedTime: 25
+            });
+            loadTodayPlan();
+            Toast.success(`Task added: "${cleaned}" 🎙️`);
+          } else {
+            Toast.error('Could not understand task name. Try again.');
+          }
+        },
+        () => btn.classList.remove('recording')
+      );
+    }
+
+    // ─── Weekly Chart ─────────────────────────────────────────
+    function initChart() {
+      const ctx = document.getElementById('weeklyChart').getContext('2d');
+      const stats = DB.getStats();
+
+      weeklyChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: stats.weeklyData.map(d => d.day),
+          datasets: [{
+            label: 'Hours',
+            data: stats.weeklyData.map(d => d.hours),
+            backgroundColor: stats.weeklyData.map((d, i) => {
+              const isToday = d.date === new Date().toDateString();
+              return isToday ? 'rgba(99,179,237,0.8)' : 'rgba(99,179,237,0.25)';
+            }),
+            borderColor: 'rgba(99,179,237,0.6)',
+            borderWidth: 1,
+            borderRadius: 6,
+            borderSkipped: false
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(13,15,20,0.95)',
+              titleColor: '#e8eaf0',
+              bodyColor: '#8b90a4',
+              borderColor: 'rgba(255,255,255,0.07)',
+              borderWidth: 1,
+              callbacks: {
+                label: ctx => `${ctx.raw}h focus time`
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: 'rgba(139,144,164,0.8)', font: { family: 'Sora', size: 11 } }
+            },
+            y: {
+              grid: { color: 'rgba(255,255,255,0.04)' },
+              ticks: {
+                color: 'rgba(139,144,164,0.8)',
+                font: { family: 'Sora', size: 11 },
+                callback: v => v + 'h'
+              },
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    function switchChart(mode, btn) {
+      document.querySelectorAll('.tabs .tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      chartMode = mode;
+
+      const stats = DB.getStats();
+      if (mode === 'hours') {
+        weeklyChart.data.datasets[0].data = stats.weeklyData.map(d => d.hours);
+        weeklyChart.data.datasets[0].label = 'Hours';
+        weeklyChart.options.scales.y.ticks.callback = v => v + 'h';
+      } else {
+        // Tasks per day
+        const tasks = DB.getTasks();
+        weeklyChart.data.datasets[0].data = stats.weeklyData.map(d => {
+          return tasks.filter(t => t.completed && t.completedAt &&
+            new Date(t.completedAt).toDateString() === d.date
+          ).length;
+        });
+        weeklyChart.data.datasets[0].label = 'Tasks';
+        weeklyChart.options.scales.y.ticks.callback = v => v;
+      }
+      weeklyChart.update();
+    }
+
+    // ─── AI Suggestions ───────────────────────────────────────
+    function renderSuggestions() {
+      const suggestions = AIEngine.analyze();
+      const list = document.getElementById('suggestions-list');
+      list.innerHTML = suggestions.map(s => `
+        <div class="suggestion-card ${s.type}" ${s.actionUrl ? `onclick="window.location='${s.actionUrl}'"` : ''}>
+          <div class="suggestion-icon">${s.icon}</div>
+          <div style="flex:1">
+            <div class="suggestion-title">${s.title}</div>
+            <div class="suggestion-body">${s.body}</div>
+            ${s.action ? `<div style="margin-top:0.5rem"><span style="font-size:0.75rem;color:var(--accent);font-weight:600">${s.action} →</span></div>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function refreshSuggestions() {
+      renderSuggestions();
+      Toast.info('Suggestions refreshed');
+    }
+
+    // ─── Goals ────────────────────────────────────────────────
+    function renderGoals() {
+      const goals = DB.getGoals();
+      const stats = DB.getStats();
+      const tasks = DB.getTasks();
+      const today = new Date().toDateString();
+      const weekStart = new Date(Date.now() - 7 * 86400000);
+
+      const completedToday = tasks.filter(t => t.completed && t.completedAt &&
+        new Date(t.completedAt).toDateString() === today
+      ).length;
+
+      const completedWeekly = tasks.filter(t => t.completed && t.completedAt &&
+        new Date(t.completedAt) > weekStart
+      ).length;
+
+      const focusPct = Math.min(100, Math.round((stats.todayMinutes / goals.dailyMinutes) * 100));
+      const taskDayPct = Math.min(100, Math.round((completedToday / goals.dailyTasksTarget) * 100));
+      const taskWeekPct = Math.min(100, Math.round((completedWeekly / goals.weeklyTasks) * 100));
+
+      document.getElementById('goals-list').innerHTML = `
+        <div class="goal-item">
+          <div class="goal-header">
+            <span>⏱️ Daily Focus</span>
+            <span class="goal-value">${Utils.formatMinutes(stats.todayMinutes)} / ${Utils.formatMinutes(goals.dailyMinutes)}</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width:${focusPct}%"></div>
+          </div>
+          <div style="text-align:right;font-size:0.7rem;color:var(--text-muted)">${focusPct}%</div>
+        </div>
+        <div class="goal-item">
+          <div class="goal-header">
+            <span>✅ Daily Tasks</span>
+            <span class="goal-value">${completedToday} / ${goals.dailyTasksTarget}</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill green" style="width:${taskDayPct}%"></div>
+          </div>
+          <div style="text-align:right;font-size:0.7rem;color:var(--text-muted)">${taskDayPct}%</div>
+        </div>
+        <div class="goal-item">
+          <div class="goal-header">
+            <span>📆 Weekly Tasks</span>
+            <span class="goal-value">${completedWeekly} / ${goals.weeklyTasks}</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill orange" style="width:${taskWeekPct}%"></div>
+          </div>
+          <div style="text-align:right;font-size:0.7rem;color:var(--text-muted)">${taskWeekPct}%</div>
+        </div>
+      `;
+
+      // Subject breakdown
+      renderSubjectBreakdown();
+    }
+
+    function renderSubjectBreakdown() {
+      const sessions = DB.getSessions().filter(s => s.type === 'focus');
+      const subjectTime = {};
+      sessions.forEach(s => {
+        subjectTime[s.subject || 'General'] = (subjectTime[s.subject || 'General'] || 0) + s.duration;
+      });
+
+      const sorted = Object.entries(subjectTime).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      const subjects = DB.getSubjects();
+      const colors = ['#63b3ed', '#9f7aea', '#68d391', '#f6ad55', '#fc8181'];
+
+      const el = document.getElementById('subject-breakdown');
+      if (sorted.length === 0) {
+        el.innerHTML = `<div class="empty-state" style="padding:0.5rem"><p>No sessions recorded yet</p></div>`;
+        return;
+      }
+
+      const max = sorted[0][1];
+      el.innerHTML = sorted.map(([name, mins], i) => {
+        const sub = subjects.find(s => s.name === name);
+        const color = sub?.color || colors[i % colors.length];
+        return `<div class="subject-row">
+          <div class="subject-color" style="background:${color}"></div>
+          <div class="subject-name">${name}</div>
+          <div style="flex:1;padding:0 0.75rem">
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:${Math.round(mins/max*100)}%;background:${color}"></div>
+            </div>
+          </div>
+          <div class="subject-time">${Utils.formatMinutes(mins)}</div>
+        </div>`;
+      }).join('');
+    }
+
+    // ─── Goal Modal ───────────────────────────────────────────
+    function openGoalModal() {
+      const goals = DB.getGoals();
+      document.getElementById('goal-daily-mins').value = goals.dailyMinutes;
+      document.getElementById('goal-daily-tasks').value = goals.dailyTasksTarget;
+      document.getElementById('goal-weekly-tasks').value = goals.weeklyTasks;
+      document.getElementById('goal-modal').classList.add('open');
+    }
+
+    function saveGoals() {
+      DB.saveGoals({
+        dailyMinutes: parseInt(document.getElementById('goal-daily-mins').value) || 120,
+        dailyTasksTarget: parseInt(document.getElementById('goal-daily-tasks').value) || 3,
+        weeklyTasks: parseInt(document.getElementById('goal-weekly-tasks').value) || 10
+      });
+      closeModal('goal-modal');
+      renderGoals();
+      loadStats();
+      Toast.success('Goals updated!');
+    }
+
+    // ─── Weekly Report ────────────────────────────────────────
+    function showReportModal() {
+      const report = ReportGenerator.generate();
+      document.getElementById('report-content').innerHTML = `
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1.5rem">📅 ${report.period}</div>
+        <div class="report-section">
+          <h4>Summary</h4>
+          <div class="report-grid">
+            <div class="report-stat">
+              <div class="report-stat-val">${report.totalFocusTime}</div>
+              <div class="report-stat-label">Total Focus</div>
+            </div>
+            <div class="report-stat">
+              <div class="report-stat-val">${report.avgDailyFocus}</div>
+              <div class="report-stat-label">Daily Average</div>
+            </div>
+            <div class="report-stat">
+              <div class="report-stat-val">${report.completedTasks}</div>
+              <div class="report-stat-label">Tasks Done</div>
+            </div>
+            <div class="report-stat">
+              <div class="report-stat-val">${report.sessionsCount}</div>
+              <div class="report-stat-label">Sessions</div>
+            </div>
+            <div class="report-stat">
+              <div class="report-stat-val">${report.streak}🔥</div>
+              <div class="report-stat-label">Day Streak</div>
+            </div>
+            <div class="report-stat">
+              <div class="report-stat-val" style="font-size:1rem">${report.topSubject}</div>
+              <div class="report-stat-label">Top Subject</div>
+            </div>
+          </div>
+        </div>
+        <div class="report-section">
+          <h4>Subject Breakdown</h4>
+          ${Object.keys(report.subjectBreakdown).length === 0
+            ? '<p style="color:var(--text-muted);font-size:0.875rem">No sessions this week</p>'
+            : Object.entries(report.subjectBreakdown)
+                .sort((a,b) => b[1]-a[1])
+                .map(([name, mins]) => `
+                  <div style="display:flex;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--border);font-size:0.875rem">
+                    <span>${name}</span>
+                    <span style="color:var(--accent);font-family:var(--font-mono)">${Utils.formatMinutes(mins)}</span>
+                  </div>
+                `).join('')
+          }
+        </div>
+        <div class="modal-footer" style="margin:0;padding-top:1rem">
+          <button class="btn btn-secondary" onclick="closeModal('report-modal')">Close</button>
+        </div>
+      `;
+      document.getElementById('report-modal').classList.add('open');
+    }
+
+    // ─── Notifications ────────────────────────────────────────
+    async function enableNotifications() {
+      const granted = await Notifications.requestPermission();
+      const btn = document.getElementById('notif-btn');
+      if (granted) {
+        btn.textContent = '✓ Enabled';
+        btn.disabled = true;
+        Toast.success('Notifications enabled!');
+        Notifications.send('StudyFlow', 'You will now receive study reminders! 📚', '🔔');
+      } else {
+        Toast.error('Permission denied. Please enable in browser settings.');
+      }
+    }
+
+    // ─── Utilities ────────────────────────────────────────────
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('open');
+    }
+
+    function scrollToSection(id) {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function scrollToTimer() {
+      document.getElementById('timer')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>
