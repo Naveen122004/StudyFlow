@@ -1,4 +1,4 @@
-
+https://venerable-froyo-0b5d4f.netlify.app/
 📘 AI-Powered Study Planner & Focus Tracker
 
 A smart and user-friendly web application designed to help students plan their study schedule, track focus time, and improve productivity with AI-like insights.
